@@ -2,3 +2,7 @@
 Thumbs.db
 *.bak
 __pycache__/
+
+# meta / internal — keep local, not in the public repo
+SHOWOFF_POST.md
+CLAUDE.md
