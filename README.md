@@ -29,12 +29,12 @@ library (including its own optional scheduler). Best for a single-package projec
 { "packages": ["vox_lib", "your_resource"] }
 ```
 
-**B) Source-bundled** — copy the `modules/` (and `web/`) files into **your** package and list them in **your** `package.json`
+**B) Source-bundled** — copy the `vox_lib/modules/` (and `vox_lib/web/`) files into **your** package and list them in **your** `package.json`
 in dependency order (handy when a build pipeline emits a single package). The host then provides the scheduler, so you can omit
 `modules/scheduler.lua`.
 
 Either way, `init.lua` must load first (it creates `lib`), then `modules/class.lua`, then the rest — see
-[`package.json`](package.json) for the canonical order.
+[`vox_lib/package.json`](vox_lib/package.json) for the canonical order.
 
 ## Quick start
 
@@ -78,10 +78,16 @@ Tomorrow/Anton type, dark translucent panels). Restyle once there and every comp
 
 ## Layout
 
-- `init.lua` — creates the global `lib` table (**load first**)
-- `modules/` — the Lua modules (each attaches itself to `lib`)
-- `web/` — the WebUI pages for the visual components (`web/_shared/helix-life.css` = shared style)
-- `dev/` — **dev-only** sandboxes & the in-engine test harness (not part of a production build)
+**[`vox_lib/`](vox_lib) is the resource** — that's the only folder you drop into `scripts/`. Everything else in this repo is
+documentation and tooling *around* it.
+
+- **`vox_lib/`** — the deployable resource
+  - `init.lua` — creates the global `lib` table (**load first**)
+  - `package.json` — production manifest (canonical load order)
+  - `modules/` — the Lua modules (each attaches itself to `lib`)
+  - `web/` — the WebUI pages (`web/_shared/helix-life.css` = shared style)
+- `docs/` — developer + tech reference
+- `dev/` — **dev-only** sandboxes & the in-engine test harness (not part of the resource)
 - `design/`, `design-divergent/` — static UI design references
 
 ## Docs

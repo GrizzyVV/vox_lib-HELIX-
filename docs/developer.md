@@ -272,4 +272,4 @@ e.g. `lib.string.upper` and the extras below both work.
 
 - **Return-value calls yield** — always wrap `alertDialog`/`inputDialog`/`progressBar`/`skillCheck` in a thread.
 - **Source-bundled, not exports** — `lib` lives in your package's state; you can't call it across the package boundary.
-- **Load order** — `init.lua` → `class.lua` → rest. Use the shipped [`package.json`](../package.json) order.
+- **Load order** — `init.lua` → `class.lua` → rest. Use the shipped [`package.json`](../vox_lib/package.json) order.

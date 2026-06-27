@@ -23,6 +23,8 @@ foundation (class/table/array/string/math/cache/print/locale/timer/waitFor/callb
   (standalone package OR source-bundled). Full surface: `docs/developer.md`.
 
 ## Architecture
+- **`vox_lib/`** = the deployable resource (drop into `scripts/`); the paths below are relative to it. `docs/`, `dev/`,
+  `design*/` live at the repo root, outside the resource.
 - `init.lua` — creates global `lib`, sets `lib._VERSION`.
 - `modules/` — one file per capability; each attaches itself to `lib` on load. `_dialog.lua` = shared return-value plumbing
   (create WebUI → one-shot response handler → SendEvent → Wait-yield). `scheduler.lua` = optional `Wait`/`CreateThread` shim
