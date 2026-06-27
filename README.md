@@ -25,4 +25,4 @@ In active development. The non-UI foundation + several UI components are probe-v
 components are built and pending an in-engine verification pass.
 
 ## License
-TODO — to be set by the maintainer.
+MIT — see [LICENSE](LICENSE).
