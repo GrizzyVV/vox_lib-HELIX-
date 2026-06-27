@@ -251,7 +251,7 @@ yaw number, or `{pitch=,yaw=,roll=}`.
 | `lib.spawnPed(coords, rotation?, opts?, cb?)` | Spawn an NPC via `HPawn` (**async** — `cb(pawn)`). `opts = { name=, nameplate=, invincible=, frozen=, tags={} }`. |
 | `lib.exitVehicle(pawn, opts?)` → result | Eject a pawn from its vehicle (`opts = { skipAnimations=true }`). |
 | `lib.ejectAll(vehicle, opts?)` → result | Eject every occupant (iterates `SeatOccupancy`). |
-| `lib.warpIntoVehicle(pawn, _, _, opts?)` → result | ⚠️ Sends the enter-vehicle intent (specific-vehicle targeting unverified — see note). |
+| `lib.warpIntoVehicle(...)` → result | ⛔ **disabled no-op** — the enter native crashes the client without a valid target (see note); returns an error. |
 | `lib.attachEntity(child, parent, rule?)` / `lib.detachEntity(child)` | Attach/detach actors. `rule = "snap"\|"keepWorld"\|"keepRelative"`. |
 | `lib.getVehiclePlate/Fuel/EngineHealth(v)` · `lib.setVehicleFuel/Plate(v, x)` | Read/write vehicle state (accepts an HVehicle or a raw actor — auto-wraps). |
 | `lib.deleteEntity(entity, ejectFirst?)` → boolean | Destroy a spawned actor; `ejectFirst=true` ejects occupants first. |
@@ -268,9 +268,13 @@ lib.deleteEntity(car, true)               -- eject occupants, then destroy
 ```
 
 > **✅ Stranded-vehicle fixed.** `lib.exitVehicle` / `lib.ejectAll` cleanly remove occupants via the engine's
-> `SendExitVehicleEventToActor` — so `lib.deleteEntity(vehicle, true)` no longer strands the player. (`warpIntoVehicle` fires the
-> enter intent but the current build's `FHEnterVehicleParams` carries only `bSkipAnimations`, so targeting a *specific* vehicle/seat
-> isn't yet expressible — it likely enters the nearest vehicle. Probe pending.)
+> `SendExitVehicleEventToActor` (live-verified — ejects to a normal standing pose, no more stranding) — so
+> `lib.deleteEntity(vehicle, true)` no longer strands the player.
+>
+> **⛔ `warpIntoVehicle` is a disabled no-op.** On the current build, `SendEnterVehicleEventToActor` with an empty
+> `FHEnterVehicleParams` (which has no vehicle/seat field) dereferences null and **hard-crashes the client** (verified live —
+> a C++ access violation that `pcall` cannot catch). Until the correct way to pass the target vehicle is found, the function
+> returns an error instead of calling the native. **Do not re-enable without a verified-safe invocation.**
 
 > **Exposing as a cross-package export** is a one-liner in your resource:
 > `exports("myresource", "SpawnVehicle", lib.spawnVehicle)` — then `exports["myresource"]:SpawnVehicle(...)` from anywhere.

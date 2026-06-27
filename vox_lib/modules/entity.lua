@@ -95,21 +95,15 @@ function lib.ejectAll(vehicle, opts)
 end
 
 -- Send a pawn an ENTER-VEHICLE event (the FiveM "warp into vehicle" intent).
--- ⚠️ PARTIAL (probe-verified 2026-06-27): SendEnterVehicleEventToActor + FHEnterVehicleParams EXIST, but the params struct
--- carries ONLY `bSkipAnimations` — it does NOT take a target vehicle/seat. So this fires the enter intent (likely the nearest
--- vehicle, FiveM-"press F"-style); warping into a SPECIFIC vehicle/seat isn't expressible via these params on the current build.
--- The 3rd/4th args are accepted for forward-compat but currently unused. Needs a deeper probe to target a specific seat.
-function lib.warpIntoVehicle(pawn, _vehicle, _seat, opts)
-    if not pawn then return { ok = false, error = "pawn required" } end
-    if type(UE) ~= "table" or not UE.UHGameplaySystemGlobals then return { ok = false, error = "vehicle-event globals unavailable" } end
-    opts = opts or {}
-    local ok = pcall(function()
-        local p = UE.FHEnterVehicleParams()
-        p.bSkipAnimations = opts.skipAnimations and true or false
-        UE.UHGameplaySystemGlobals.SendEnterVehicleEventToActor(pawn, p)
-    end)
-    return ok and { ok = true, note = "enter intent sent; specific-vehicle targeting unverified" }
-        or { ok = false, error = "SendEnterVehicleEventToActor failed" }
+-- ⛔ DISABLED — DANGEROUS on the current build. PROBE 2026-06-27: SendEnterVehicleEventToActor + FHEnterVehicleParams exist, but
+-- FHEnterVehicleParams carries ONLY `bSkipAnimations` (no target vehicle/seat), and calling the native without a valid target
+-- HARD-CRASHES the client (EXCEPTION_ACCESS_VIOLATION — null vehicle deref; reproduced live, crashed the world). A `pcall` does
+-- NOT catch a C++ access violation, so we must NOT invoke it until the correct way to pass the target vehicle is found. This is a
+-- guarded NO-OP returning an error; do not re-enable the native call without a verified-safe invocation. (Vehicle EXIT is fine —
+-- see lib.exitVehicle.)
+function lib.warpIntoVehicle(_pawn, _vehicle, _seat, _opts)
+    return { ok = false, error = "warpIntoVehicle disabled: SendEnterVehicleEventToActor crashes the client without a valid " ..
+             "target vehicle (FHEnterVehicleParams has no vehicle field on the current build). Targeting mechanism unresolved." }
 end
 
 -- ── vehicle readback helpers (direct HVehicle methods; pass an HVehicle or wrap a raw actor via HVehicle.wrap) ──────
