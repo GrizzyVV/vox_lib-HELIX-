@@ -6,3 +6,6 @@ __pycache__/
 # meta / internal — keep local, not in the public repo
 SHOWOFF_POST.md
 CLAUDE.md
+dev/
+design/
+design-divergent/
