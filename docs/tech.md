@@ -57,6 +57,16 @@ movement/ability inputs don't leak), views a camera actor blended in with `SetVi
 `GetControlRotation` + key-tracked movement applied via `K2_TeleportTo`. Input is `Input.BindKey` (HELIX exposes key
 press/release only — no mouse-delta/axis), with mouse-look read from control rotation.
 
+## Character Creator (native cosmetics)
+
+Unlike GTA/FiveM ped drawables, HELIX has a native cosmetics component (`BPC_CharacterCreator` / `UHCharacterCosmetics`) on the
+player pawn. vox_lib wraps it rather than reimplementing a creator UI — HELIX renders the customization UI via
+`ShowCharacterCustomizationUI()`. The appearance round-trips as a `BP_JsonObjectWrapper`: `RetainCharacterCustomizationPreset()`
+→ `:SaveToString()` gives a JSON string `{ Gender, Slots: { <guid>: { MaterialParameters } } }`; reconstructing a wrapper with
+`NewObject(class)` + `:LoadFromString(json)` and calling `ApplyCharacterCustomizationPreset(wrapper)` restores it exactly
+(probe-verified end-to-end). The stock flow reads only `.Gender` and discards the preset, so appearance is otherwise lost on
+respawn — `lib.applyAppearance` on `HEvent:PlayerPossessed` closes that gap. See `developer.md`.
+
 ## Known deviations / limits
 
 - `lib.waitFor` returns `nil` on timeout (no throw — see halt-on-first-throw).

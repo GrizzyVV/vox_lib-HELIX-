@@ -5,8 +5,9 @@
      Standard Lua 5.4 (probe-verified HELIX runtime). ]]
 
 lib = lib or {}
-lib._VERSION = "vox_lib 1.0.0"   -- foundation (class/table/array/string/math/cache/print/locale/waitFor/timer/callback/hook)
-                                 -- + UI tier (notify/textUI/alert/progress/input/context/menu/skillCheck/radial) + weather/freecam
+lib._VERSION = "vox_lib 1.1.0"   -- foundation (class/table/array/string/math/cache/print/locale/waitFor/timer/callback/hook)
+                                 -- + UI tier (notify/textUI/alert/progress/input/context/menu/skillCheck/radial)
+                                 -- + cinematic (weather/freecam) + character creator (appearance capture/persist/reapply)
 
 -- Modules attach themselves to the global `lib` table when their file is loaded after this one.
 -- (A standalone deployable build can drive load order via package.json; a host/consumer build bundles in dependency order.)

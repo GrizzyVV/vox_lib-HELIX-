@@ -51,6 +51,10 @@ foundation (class/table/array/string/math/cache/print/locale/timer/waitFor/callb
 - UI tier verified 9/9 end-to-end; production manifest verified to load clean (all 25 modules, no errors).
 
 ## Changelog
+- **1.1.0** — `modules/charcreator.lua`: Character Creator surface over HELIX's native cosmetics (`BPC_CharacterCreator`).
+  Appearance capture/persist/reapply round-trip probe-verified live (`RetainCharacterCustomizationPreset:SaveToString` ↔
+  `LoadFromString`+`ApplyCharacterCustomizationPreset`); contract `{Gender, Slots:{guid:{MaterialParameters}}}`. No web page
+  (native UI). Docs: developer.md (Character Creator + persistence pattern), tech.md.
 - **1.0.0** — UI tier complete + verified in-world + polished; cinematic layer (weather/time/freecam); production manifest +
   `modules/scheduler.lua`; full doc set. Public MIT repo `GrizzyVV/vox_lib-HELIX-`.
 - 0.3.0 — foundation (Stages 1–3) + initial UI builds.

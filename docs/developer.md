@@ -5,6 +5,7 @@ inputDialog, progressBar/Circle, skillCheck) **yield** — call them from inside
 
 - [UI](#ui)
 - [Cinematic — weather / time / freecam](#cinematic)
+- [Character Creator — appearance](#character-creator)
 - [Foundation](#foundation)
 
 ---
@@ -148,6 +149,63 @@ mouse-look, Shift to boost; **Backspace** exits.
 ```lua
 lib.ToggleFreeCam({ speed = 1.0, invertY = true })   -- invertY default true (spectator-host pitch)
 ```
+
+---
+
+## Character Creator
+
+Surfaces HELIX's **native** character-customization system (the `BPC_CharacterCreator` / cosmetics component on the local
+pawn). HELIX renders the customization UI itself — vox_lib gives you the verbs to open it and, crucially, to **capture, persist,
+and re-apply the appearance** so a created look survives a respawn. **Client-side.**
+
+### The appearance contract
+`lib.getAppearance()` returns a **JSON string** (~7 KB) — the engine's `BP_JsonObjectWrapper` serialized:
+```json
+{ "Gender": "Male", "Slots": { "<slot-guid>": { "MaterialParameters": [ ... ] }, ... } }
+```
+Treat it as an opaque blob: store the whole string, hand the whole string back. (Probe-verified round-trip on HELIX.)
+
+### Verbs
+| Function | Does |
+|---|---|
+| `lib.openCharacterCreator(opts?)` | Opens the native customization UI. `opts.slotFilter` = `{ SlotName = true }` to **hide** slots (e.g. `{ Hats = true, Masks = true }`). |
+| `lib.getAppearance()` → `string\|nil` | Capture the current appearance as a JSON string (persist this). |
+| `lib.applyAppearance(json)` → `boolean` | Reconstruct + apply a saved appearance string. |
+| `lib.resetAppearance(gender?, bodyType?)` → `boolean` | Reset to engine defaults (defaults to the character's current gender/bodyType). |
+| `lib.equipCosmetic(id)` / `lib.unequipCosmetic(id)` / `lib.equipCosmetics(ids)` | Wearable items by `equipmentId`. |
+| `lib.isCosmeticEquipped(id)` → `boolean` | — |
+| `lib.getCosmeticGender()` / `lib.getCosmeticBodyType()` | Current enum values. |
+| `lib.getCosmeticsSystem()` | The raw component, for anything not wrapped here. |
+
+### Persistence pattern (the important part)
+The native flow captures the preset only to read gender, then **throws it away** — so customization is lost on respawn. Close
+that gap by persisting the JSON and re-applying on possession. vox_lib is client-side; persistence is your server's job (e.g.
+[vox_sqlite](https://github.com/GrizzyVV)):
+
+```lua
+-- CLIENT: when the player confirms creation (or closes the creator)
+local json = lib.getAppearance()
+if json then TriggerServerEvent("myresource:saveAppearance", json) end
+
+-- SERVER: persist keyed by character id
+RegisterServerEvent("myresource:saveAppearance", function(src, json)
+    local cid = getCitizenId(src)
+    exports["vox_sqlite"]:Execute("UPDATE players SET appearance = ? WHERE citizenid = ?", { json, cid })
+end)
+
+-- CLIENT: re-apply on spawn
+RegisterClientEvent("HEvent:PlayerPossessed", function()
+    TriggerServerEvent("myresource:requestAppearance")
+end)
+RegisterClientEvent("myresource:loadAppearance", function(json)
+    if json then lib.applyAppearance(json) end
+end)
+```
+
+> **Notes.** `applyAppearance` re-applies the *full* preset (face/body/material params), distinct from equipment-driven clothing
+> (which qb-style inventories re-equip via `equipCosmetics` on possession). `resetAppearance`'s `gender` arg flips the enum but
+> does not by itself swap the base body mesh in the default state. The native UI's "finished" signal (for auto-capture) is an
+> `OnCosmeticsUpdated`-style event — not yet wrapped here; capture on your own confirm/close for now.
 
 ---
 

@@ -25,6 +25,7 @@
     "modules/skillcheck.lua",
     "modules/radial.lua",
     "modules/weather.lua",
-    "modules/freecam.lua"
+    "modules/freecam.lua",
+    "modules/charcreator.lua"
   ]
 }
