@@ -287,18 +287,19 @@ lib.deleteEntity(car, true)               -- eject occupants, then destroy
 
 ## Animations
 
-> ⚠️ **NOT YET VISUALLY VERIFIED.** `lib.playAnim` wires the `Animation.Play` API and returns success, but **no visible
-> animation has been observed in testing** (a human watching the pawn saw nothing play). The wrapper is wired correctly to the
-> API hl-emotes uses, and the `FHPlayAnimParams` blend fields below are probe-confirmed to *exist* — but actually getting a
-> montage to render on a pawn is unresolved (likely needs a slot/anim-BP detail this wrapper is missing). **Treat as experimental
-> until confirmed playing in-world.**
+> ✅ **VERIFIED RENDERING (in-engine).** The long-standing non-render was a **wrong slot**: the default was `"FullBody"`, which
+> isn't a real montage slot on the player ABP — so montages played into nothing. The correct slot is **`"DefaultSlot"`** (now the
+> default), confirmed visibly animating the player pawn in-editor. If you pass a custom `slot`, it must be a real slot on the
+> character's anim blueprint (`"DefaultSlot"` or `"UpperBody"`).
 
 `lib.playAnim(pawn, animPath, opts?)` / `lib.stopAnim(pawn)` over the HELIX `Animation` global (montages). **Client-side.**
 `animPath` is the animation **asset path** (e.g. `/HelixAnimation/Unified/Animations/Actions/A_Action_Wave.A_Action_Wave`).
-`opts = { loop=bool, slot="FullBody"|"UpperBody", blendIn=sec, blendOut=sec, playRate=number, onComplete=fn }`.
+`opts = { loop=bool, slot="DefaultSlot"|"UpperBody" (default "DefaultSlot"), blendIn=sec, blendOut=sec, playRate=number,
+lockMovement=bool (freeze the player during the anim — for emotes), cancellable=bool, onComplete=fn }`.
 
-`FHPlayAnimParams` exposes `BlendInTime`/`BlendOutTime`/`PlayRate` (probe-confirmed fields), so blending between montages is
-*intended* once playback works. (Parametric blend-spaces — walk↔run by speed — are a separate anim-BP mechanism, not exposed here.)
+`FHPlayAnimParams` exposes `BlendInTime`/`BlendOutTime`/`PlayRate` (read live off the struct), so playing a new montage on the same
+slot crossfades from the current pose — smooth A→B transitions. (Parametric blend-spaces — walk↔run by speed — are a separate
+anim-BP mechanism, not exposed here.)
 
 ```lua
 CreateThread(function()
