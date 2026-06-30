@@ -23,6 +23,10 @@ local function toRotator(r)
     return Rotator(r.pitch or r.Pitch or 0, r.yaw or r.Yaw or 0, r.roll or r.Roll or 0)
 end
 
+-- The world handle: bare `HWorld` can be nil in some package states (smoke-test 2026-06-30 caught getActorsOfClass
+-- returning 0 because of this) -> fall back to GetWorld().
+local function world() return HWorld or (GetWorld and GetWorld()) or nil end
+
 -- Spawn a vehicle. `asset` = the vehicle Blueprint path (e.g. "/HelixVehicles/Blueprints/Cars/H1/BP_H1.BP_H1_C").
 -- opts (optional): { plate = string, tags = { "tag1", ... } }. Returns the vehicle actor (or nil).
 function lib.spawnVehicle(asset, coords, heading, opts)
@@ -45,12 +49,13 @@ end
 function lib.spawnObject(class, coords, rotation, opts)
     local cls = class
     if type(class) == "string" then cls = LoadClass(class) end
-    if not cls or not HWorld then return nil end
+    local w = world()
+    if not cls or not w then return nil end
     local a
     pcall(function()
         local t = Transform()
         t.Translation = toVector(coords)
-        a = HWorld:SpawnActor(cls, t, UE.ESpawnActorCollisionHandlingMethod.AlwaysSpawn)
+        a = w:SpawnActor(cls, t, UE.ESpawnActorCollisionHandlingMethod.AlwaysSpawn)
     end)
     if not a then return nil end
     if rotation ~= nil then pcall(function() a:K2_SetActorRotation(toRotator(rotation), false) end) end
@@ -252,10 +257,12 @@ function lib.getActorsOfClass(class)
     local cls = type(class) == "string" and LoadClass(class) or class
     local out = {}
     if not cls then return out end
+    local w = world()
+    if not w then return out end
     pcall(function()
         local arr = UE.TArray(UE.AActor)
-        UE.UGameplayStatics.GetAllActorsOfClass(HWorld, cls, arr)
-        for i = 0, (arr:Length() - 1) do out[#out + 1] = arr:Get(i) end
+        UE.UGameplayStatics.GetAllActorsOfClass(w, cls, arr)
+        for i = 1, arr:Length() do out[#out + 1] = arr:Get(i) end   -- UnLua TArray is 1-INDEXED (Get(0)=nil)
     end)
     return out
 end
@@ -274,4 +281,39 @@ function lib.placeOnGround(entity, opts)
     local res = lib.raycast and lib.raycast({ loc.X, loc.Y, loc.Z + up }, { loc.X, loc.Y, loc.Z - down }, { ignore = { a } })
     if not (res and res.hit and res.result and res.result.location) then return false end
     return pcall(function() a:K2_TeleportTo(res.result.location, a:K2_GetActorRotation()) end)
+end
+
+-- ── motion / state reads (b2probe-VERIFIED 2026-06-30) ──────────────────────────────────────────────────────────────
+-- GetEntitySpeed — velocity magnitude (cm/s). GetEntityForwardVector — facing unit vector.
+function lib.getEntitySpeed(entity)  local a = asActor(entity); local s; if a then pcall(function() s = a:GetVelocity():Size() end) end; return s end
+function lib.getForwardVector(entity) local a = asActor(entity); local v; if a then pcall(function() v = a:GetActorForwardVector() end) end; return v end
+
+-- Ped movement state via the UHCharacterMovementComponent (verified: IsSwimming/IsFalling/IsMovingOnGround callable).
+local function charMove(ped) local a = asActor(ped); local c; if a then pcall(function() c = a.CharacterMovement end) end; return c end
+function lib.isPedSwimming(ped) local c = charMove(ped); local r; if c then pcall(function() r = c:IsSwimming() end) end; return r and true or false end
+function lib.isPedFalling(ped)  local c = charMove(ped); local r; if c then pcall(function() r = c:IsFalling() end) end; return r and true or false end
+function lib.isPedOnFoot(ped)   local c = charMove(ped); local r; if c then pcall(function() r = c:IsMovingOnGround() end) end; return r and true or false end
+
+-- GetClosestObjectOfType / GetClosestPed|Vehicle — nearest actor of `class` to `coords` (GetGamePool + nearest filter).
+-- Returns actor, distance. `class` = a UClass (UE.AHCharacter, UE.AHVehiclePawn, …) or a class-path string.
+function lib.getClosestActor(coords, class, maxDist)
+    local c = toVector(coords); local best, bestD
+    for _, a in ipairs(lib.getActorsOfClass(class)) do
+        local d; pcall(function() local l = a:K2_GetActorLocation(); d = math.sqrt((l.X - c.X) ^ 2 + (l.Y - c.Y) ^ 2 + (l.Z - c.Z) ^ 2) end)
+        if d and (not bestD or d < bestD) and (not maxDist or d <= maxDist) then best, bestD = a, d end
+    end
+    return best, bestD
+end
+
+-- World3dToScreen2d — project a world point to a screen position {x,y}. CLIENT-side. VERIFIED 2026-06-30 (client smoke:
+-- returned real screen coords for the player's own position). ProjectWorldToScreen returns (bool, FVector2D).
+function lib.worldToScreen(coords)
+    if not (HPlayer and UE.UGameplayStatics and UE.UGameplayStatics.ProjectWorldToScreen) then return nil end
+    local out
+    pcall(function()
+        local ok, v2 = UE.UGameplayStatics.ProjectWorldToScreen(HPlayer, toVector(coords))
+        local v = (type(v2) == "userdata") and v2 or (type(ok) == "userdata" and ok or nil)
+        if v then out = { x = v.X, y = v.Y } end
+    end)
+    return out
 end

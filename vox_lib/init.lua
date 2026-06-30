@@ -5,11 +5,12 @@
      Standard Lua 5.4 (probe-verified HELIX runtime). ]]
 
 lib = lib or {}
-lib._VERSION = "vox_lib 1.6.1"   -- foundation (class/table/array/string/math/cache/print/locale/waitFor/timer/callback/hook)
+lib._VERSION = "vox_lib 1.6.2"   -- foundation (class/table/array/string/math/cache/print/locale/waitFor/timer/callback/hook)
                                  -- + UI tier (notify/textUI/alert/progress/input/context/menu/skillCheck/radial)
                                  -- + cinematic (weather/freecam/camera) + character creator (appearance + per-slot tint)
                                  -- + entities (spawn/delete + freeze/collision/visible/model/health + bone idx/coords + AI goto
-                                 --   + offset coords + actors-of-class + vehicle repair + place-on-ground) + anim (play/stop/isPlaying)
+                                 --   + offset/actors-of-class/closest + speed/forward + ped motion-state + repair + place-on-ground
+                                 --   + world->screen) + anim (play/stop/isPlaying)
                                  -- + vehicle paint (per-instance colour: component/body/fleet/individual + interp + party)
 
 -- Modules attach themselves to the global `lib` table when their file is loaded after this one.

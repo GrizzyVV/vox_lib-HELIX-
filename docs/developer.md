@@ -281,6 +281,11 @@ yaw number, or `{pitch=,yaw=,roll=}`.
 | `lib.getActorsOfClass(class)` → `{actor,…}` | All actors of a UClass/path as a Lua array (`GetGamePool`; e.g. `UE.AHVehiclePawn`). |
 | `lib.setVehicleEngineHealth(v, h)` / `lib.repairVehicle(v, full?)` | Write engine health / repair (default full=1000). |
 | `lib.placeOnGround(entity, opts?)` → boolean | Raycast down + teleport to the ground hit. ⚠️ depends on `lib.raycast` (probe-pending arg order). |
+| `lib.getEntitySpeed(entity)` → `number` | Velocity magnitude (cm/s). |
+| `lib.getForwardVector(entity)` → `Vector` | Facing unit vector. |
+| `lib.isPedSwimming/isPedFalling/isPedOnFoot(ped)` → boolean | Movement state via the character movement component. |
+| `lib.getClosestActor(coords, class, maxDist?)` → `actor, dist` | Nearest actor of a UClass to a point. |
+| `lib.worldToScreen(coords)` → `{x,y}\|nil` | Project a world point to screen pixels (client-side). |
 
 ```lua
 -- vehicle (asset path comes from your vehicle catalog, e.g. qb-core Shared.Vehicles[model].asset_name)
