@@ -275,7 +275,12 @@ yaw number, or `{pitch=,yaw=,roll=}`.
 | `lib.getEntityModel(entity)` → `string` | The actor's class name. |
 | `lib.getEntityHealth/getEntityMaxHealth/isEntityDead(entity)` | Ped health via the health component (vehicles read 0 → use `getVehicleEngineHealth`). |
 | `lib.getBoneCoords(ped, bone)` → `Vector` | World location of a ped bone/socket (e.g. `"head"`, `"spine_03"`). |
+| `lib.getBoneIndex(ped, bone)` → `int` | A ped bone's index by name. |
 | `lib.taskGoTo(ped, coords)` → boolean | Walk an NPC (spawned via `lib.spawnPed`) to a destination via its AI controller. |
+| `lib.getEntityOffsetCoords(entity, dx, dy, dz)` → `Vector` | World point at a local offset from an actor (`GetOffsetFromEntityInWorldCoords`). |
+| `lib.getActorsOfClass(class)` → `{actor,…}` | All actors of a UClass/path as a Lua array (`GetGamePool`; e.g. `UE.AHVehiclePawn`). |
+| `lib.setVehicleEngineHealth(v, h)` / `lib.repairVehicle(v, full?)` | Write engine health / repair (default full=1000). |
+| `lib.placeOnGround(entity, opts?)` → boolean | Raycast down + teleport to the ground hit. ⚠️ depends on `lib.raycast` (probe-pending arg order). |
 
 ```lua
 -- vehicle (asset path comes from your vehicle catalog, e.g. qb-core Shared.Vehicles[model].asset_name)

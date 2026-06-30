@@ -230,3 +230,48 @@ function lib.taskGoTo(ped, coords)
         UE.UAIBlueprintHelperLibrary.SimpleMoveToLocation(ctrl, toVector(coords))
     end)
 end
+
+-- ── spatial + enumeration + vehicle repair (b2probe-VERIFIED 2026-06-30) ────────────────────────────────────────────
+-- GetPedBoneIndex: a ped's bone index by name (the index sibling of getBoneCoords). mesh:GetBoneIndex / GetBoneName verified.
+function lib.getBoneIndex(ped, bone)
+    local a = asActor(ped); if not a then return nil end
+    local i; pcall(function() i = a.Mesh:GetBoneIndex(bone) end); return i
+end
+
+-- GetOffsetFromEntityInWorldCoords: world point at a local offset from an actor. NOTE GetActorTransform() is nil ->
+-- use GetTransform(); TransformPosition returned ped_loc + offset EXACTLY in-engine.
+function lib.getEntityOffsetCoords(entity, dx, dy, dz)
+    local a = asActor(entity); if not a then return nil end
+    local p; pcall(function() p = a:GetTransform():TransformPosition(toVector({ dx or 0, dy or 0, dz or 0 })) end)
+    return p
+end
+
+-- GetGamePool / GetGamePoolForEntityType: all actors of a class as a Lua array. `class` = a UClass (e.g. UE.AHVehiclePawn,
+-- UE.AHCharacter) or a class-path string. Verified via UGameplayStatics.GetAllActorsOfClass.
+function lib.getActorsOfClass(class)
+    local cls = type(class) == "string" and LoadClass(class) or class
+    local out = {}
+    if not cls then return out end
+    pcall(function()
+        local arr = UE.TArray(UE.AActor)
+        UE.UGameplayStatics.GetAllActorsOfClass(HWorld, cls, arr)
+        for i = 0, (arr:Length() - 1) do out[#out + 1] = arr:Get(i) end
+    end)
+    return out
+end
+
+-- SetVehicleFixed / engine-health write (b2probe-verified: veh:SetEngineHealth is a function; Repair/SetEngineOn are nil).
+function lib.setVehicleEngineHealth(v, h) v = asVehicle(v); return pcall(function() v:SetEngineHealth(h) end) end
+function lib.repairVehicle(v, full)       v = asVehicle(v); return pcall(function() v:SetEngineHealth(full or 1000) end) end
+
+-- PlaceObjectOnGroundProperly: raycast straight down from the actor and teleport it to the ground hit (keeps rotation).
+function lib.placeOnGround(entity, opts)
+    local a = asActor(entity); if not a then return false end
+    opts = opts or {}
+    local loc; pcall(function() loc = a:K2_GetActorLocation() end)
+    if not loc then return false end
+    local up, down = opts.up or 100, opts.down or 1000
+    local res = lib.raycast and lib.raycast({ loc.X, loc.Y, loc.Z + up }, { loc.X, loc.Y, loc.Z - down }, { ignore = { a } })
+    if not (res and res.hit and res.result and res.result.location) then return false end
+    return pcall(function() a:K2_TeleportTo(res.result.location, a:K2_GetActorRotation()) end)
+end

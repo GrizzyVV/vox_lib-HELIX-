@@ -77,4 +77,12 @@ end
 -- best-effort: the last anim path we started on this pawn (nil once it completes / is stopped). Not an engine readback.
 function lib.getPlayingAnim(pawn) return _playing[pawn] end
 
+-- IsEntityPlayingAnim — REAL engine readback (b2probe-verified 2026-06-30): the pawn's skeletal-mesh AnimInstance
+-- exposes Montage_IsPlaying / IsAnyMontagePlaying (the mesh component's own Montage_* are nil → go via GetAnimInstance()).
+function lib.isAnimPlaying(pawn)
+    if not pawn then return false end
+    local r; pcall(function() r = pawn.Mesh:GetAnimInstance():IsAnyMontagePlaying() end)
+    return r and true or false
+end
+
 return lib.playAnim
