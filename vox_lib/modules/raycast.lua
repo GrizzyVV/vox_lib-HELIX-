@@ -1,16 +1,19 @@
---[[ lib.raycast / lib.raycastFromCamera — line traces over the HELIX/UE physics, returning the first hit.
-     Built on probe-verified UE reflection (current build 2026-06-27): UE.UKismetSystemLibrary.LineTraceSingle +
-     UE.UGameplayStatics.DeprojectScreenToWorld + UE.UGameplayStatics.BreakHitResult. CLIENT-side.
+--[[ lib.raycast / lib.raycastFromCamera — line traces over HELIX physics, returning the first hit.
+     ⭐ Uses HELIX's OWN global trace API `Trace:LineSingle(Start, End, channel, mode, IgnoredActors)` (shipped in
+     Engine/Content/LuaScript/API/Trace.lua) — the blessed path; returns an FHitResult or nil. We pass mode=0 (no debug draw)
+     and IgnoredActors as a PLAIN Lua table.
 
-     ✅ VERIFIED in-engine 2026-06-30: a downward trace through the player returned ok=true, hit=true, a sensible hit location
-     (Z=178.8 ≈ capsule top) and a SELF-CONSISTENT distance (213.18 = traceStartZ − hitZ). The arg order + FHitResult out-param
-     read are correct on this build. (`lib.raycastFromCamera` is the client/camera variant — same trace, screen-deprojected start.) ]]
+     WHY (2026-06-30, Matt caught the log spam): the old hand-rolled `UKismetSystemLibrary.LineTraceSingle` call was WRONG and
+     logged 'Invalid parameter' errors on every trace (it still returned a hit, so it looked fine). The correct signature —
+     read straight from HELIX's Trace.lua — is `LineTraceSingle(World, Start, End, Channel, bComplex, IgnoreTABLE, DrawDebug,
+     OutHit, bIgnoreSelf, TraceColor, TraceHitColor, DrawTime)`: World IS the 1st arg, ActorsToIgnore is a PLAIN TABLE (not a
+     `UE.TArray`), OutHit is passed at pos 8 AND read back, and the trailing colors/DrawTime are REQUIRED. So we just call the
+     `Trace` global; the direct call is a fallback (now with the correct signature) for builds lacking it. ]]
 
-local function toVec(c)
-    if c == nil then return Vector() end
+local function toVec(c)   -- args-constructor form (Vector()+`.X=` does NOT persist on a table input — value-struct gotcha)
     if type(c) == "userdata" then return c end
-    local v = Vector(); v.X = c.x or c.X or c[1] or 0; v.Y = c.y or c.Y or c[2] or 0; v.Z = c.z or c.Z or c[3] or 0
-    return v
+    if c == nil then return Vector(0, 0, 0) end
+    return Vector(c.x or c.X or c[1] or 0, c.y or c.Y or c[2] or 0, c.z or c.Z or c[3] or 0)
 end
 
 local function channel()
@@ -32,25 +35,36 @@ local function readHit(hit)
     return out
 end
 
--- Trace a ray from `startCoords` to `endCoords`. opts: { ignore = {actors}, complex = bool }.
+-- Trace a ray from `startCoords` to `endCoords`. opts: { ignore = {actors}, complex = bool, channel = <collision channel> }.
 -- Returns { ok, hit = bool, result = { location, normal, actor, distance } | nil }.
 function lib.raycast(startCoords, endCoords, opts)
-    if type(UE) ~= "table" or not (UE.UKismetSystemLibrary and UE.UKismetSystemLibrary.LineTraceSingle) then
-        return { ok = false, error = "LineTraceSingle unavailable" }
-    end
     opts = opts or {}
-    local ignore = UE.TArray(UE.AActor)
-    if opts.ignore then for _, a in ipairs(opts.ignore) do pcall(function() ignore:Add(a) end) end end
-    local hitResult = UE.FHitResult()
-    local didHit, hr
+    local S, E = toVec(startCoords), toVec(endCoords)
+    local ignore = {}   -- PLAIN Lua table (HELIX Trace API wants a table, not a UE.TArray)
+    if opts.ignore then for _, a in ipairs(opts.ignore) do ignore[#ignore + 1] = a end end
+
+    -- ⭐ preferred: HELIX's own global Trace API. mode=0 => no debug draw. Returns an FHitResult or nil.
+    if type(Trace) == "table" and Trace.LineSingle then
+        local hit
+        local ok = pcall(function() hit = Trace:LineSingle(S, E, opts.channel, 0, ignore) end)
+        if not ok then return { ok = false, error = "Trace:LineSingle failed" } end
+        if not hit then return { ok = true, hit = false, result = nil } end
+        return { ok = true, hit = true, result = readHit(hit) }
+    end
+
+    -- fallback (no Trace global): the CORRECT direct signature (from HELIX API/Trace.lua) — OutHit passed AND read back.
+    if type(UE) ~= "table" or not (UE.UKismetSystemLibrary and UE.UKismetSystemLibrary.LineTraceSingle) then
+        return { ok = false, error = "no Trace global and LineTraceSingle unavailable" }
+    end
+    local hr = UE.FHitResult()
+    local didHit
     local ok = pcall(function()
-        -- LineTraceSingle(WorldContext, Start, End, TraceChannel, bComplex, ActorsToIgnore, DrawDebugType, OutHit, bIgnoreSelf)
         didHit = UE.UKismetSystemLibrary.LineTraceSingle(
-            HWorld, toVec(startCoords), toVec(endCoords), channel(), opts.complex and true or false,
-            ignore, UE.EDrawDebugTrace.None, hitResult, true)
+            HWorld, S, E, opts.channel or channel(), opts.complex and true or false,
+            ignore, 0, hr, true, UE.FLinearColor.Red, UE.FLinearColor.Green, 0)
     end)
-    if not ok then return { ok = false, error = "LineTraceSingle call failed (probe arg order)" } end
-    return { ok = true, hit = didHit and true or false, result = didHit and readHit(hitResult) or nil }
+    if not ok then return { ok = false, error = "LineTraceSingle failed" } end
+    return { ok = true, hit = didHit and true or false, result = didHit and readHit(hr) or nil }
 end
 
 -- Trace from the camera through a screen point (default screen centre). opts: { x, y (0-1 screen frac), distance (default 100000), ignore }.
