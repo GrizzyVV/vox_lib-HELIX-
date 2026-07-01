@@ -8,7 +8,11 @@
      read straight from HELIX's Trace.lua — is `LineTraceSingle(World, Start, End, Channel, bComplex, IgnoreTABLE, DrawDebug,
      OutHit, bIgnoreSelf, TraceColor, TraceHitColor, DrawTime)`: World IS the 1st arg, ActorsToIgnore is a PLAIN TABLE (not a
      `UE.TArray`), OutHit is passed at pos 8 AND read back, and the trailing colors/DrawTime are REQUIRED. So we just call the
-     `Trace` global; the direct call is a fallback (now with the correct signature) for builds lacking it. ]]
+     `Trace` global; the direct call is a fallback (now with the correct signature) for builds lacking it.
+
+     ✅ VERIFIED CLEAN in-engine 2026-07-01: a downward trace returned ok/hit=true, location Z=0 (ground), normal (0,0,1),
+     distance 392.15 (self-consistent), and — the point — ZERO `LineTraceSingle` param errors in the whole log. placeOnGround
+     (rides on this) dropped an object 892→0. ]]
 
 local function toVec(c)   -- args-constructor form (Vector()+`.X=` does NOT persist on a table input — value-struct gotcha)
     if type(c) == "userdata" then return c end
