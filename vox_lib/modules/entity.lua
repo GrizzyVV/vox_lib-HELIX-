@@ -361,3 +361,79 @@ function lib.worldToScreen(coords)
     end)
     return out
 end
+
+-- ── converter B2->A wrappers (2026-07-02): back the FiveM-native re-compose map. Grounded in the 8-family sensor sweep +
+-- catalog; several call catalog methods whose BEHAVIOR is unverified (pcall-guarded) -> in-engine test owed. ────────────
+-- teleport (SetEntityCoordsNoOffset / SetPedCoordsKeepVehicle): move actor to coords, keep current rotation.
+function lib.setEntityCoords(entity, x, y, z)
+    local a = asActor(entity); if not a then return false end
+    local loc = (type(x) == "userdata" or type(x) == "table") and toVector(x) or toVector({ x = x, y = y, z = z })
+    return pcall(function() a:K2_TeleportTo(loc, a:K2_GetActorRotation()) end)
+end
+-- alpha (SetEntityAlpha): HELIX has no per-actor opacity -> binary visible (0 hidden / >0 shown).
+function lib.setEntityAlpha(entity, alpha) return lib.setEntityVisible(entity, (tonumber(alpha) or 255) > 0) end
+-- dynamic (SetEntityDynamic): dynamic=false => frozen=true (bool inverted).
+function lib.setEntityDynamic(entity, dynamic) return lib.freezeEntity(entity, dynamic == false) end
+-- proofs (SetEntityProofs): HELIX has only blanket invincibility, not granular per-proof flags.
+function lib.setEntityProofs(entity, on) local a = asActor(entity); return a and pcall(function() SetEntityInvincible(a, on ~= false) end) end
+-- clear tasks (ClearPedTasksImmediately / ClearPedSecondaryTask): no GTA task queue -> stop anim + restore movement.
+function lib.clearPedTasks(ped) if lib.stopAnim then pcall(function() lib.stopAnim(ped) end) end return lib.freezeEntity(ped, false) end
+-- stand still (TaskStandStill): freeze, auto-unfreeze after ms.
+function lib.taskStandStill(ped, ms)
+    lib.freezeEntity(ped, true)
+    if ms and ms > 0 and Timer then pcall(function() Timer.SetTimeout(function() lib.freezeEntity(ped, false) end, ms) end) end
+    return true
+end
+-- is-a-vehicle (IsEntityAVehicle): class check.
+function lib.isEntityAVehicle(entity) local a = asActor(entity); local r; if a then pcall(function() r = a:IsA(UE.AHVehiclePawn) end) end return r and true or false end
+-- is-a-player (IsPedAPlayer): controlled by a player.
+function lib.isPedAPlayer(ped) local a = asActor(ped); local r; if a then pcall(function() r = a:IsPlayerControlled() end) end return r and true or false end
+-- is-walking (IsPedWalking): on-foot + moving in a rough walking speed band (cm/s). NOT swimming/in-vehicle aware.
+function lib.isPedWalking(ped)
+    if lib.isPedOnFoot and not lib.isPedOnFoot(ped) then return false end
+    local s = lib.getEntitySpeed(ped) or 0
+    return s > 20 and s < 350
+end
+-- speed vector (GetEntitySpeedVector): world-space velocity vector.
+function lib.getEntitySpeedVector(entity) local a = asActor(entity); local v; if a then pcall(function() v = a:GetVelocity() end) end return v end
+-- player control (SetPlayerControl): enable/disable the local player's input over their character.
+function lib.setPlayerControl(ped, hasControl)
+    local frozen = hasControl == false
+    lib.freezeEntity(ped, frozen)
+    pcall(function() if HPlayer and HPlayer.SetIgnoreMoveInput then HPlayer:SetIgnoreMoveInput(frozen) end end)
+    return true
+end
+-- vehicle seats (GetVehicleNumberOfPassengers / Max / IsPedSittingIn[Any]Vehicle) via SeatOccupancy.
+function lib.getVehiclePassengerCount(v)
+    v = asVehicle(v); local n = 0
+    if v and v.SeatOccupancy then pcall(function() for _, occ in pairs(v.SeatOccupancy:ToTable()) do if occ then n = n + 1 end end end) end
+    return n
+end
+function lib.getVehicleMaxSeats(v)
+    v = asVehicle(v); local n = 0
+    if v and v.SeatOccupancy then pcall(function() n = #v.SeatOccupancy:ToTable() end) end
+    return n
+end
+function lib.isPedSittingInVehicle(ped, v)
+    v = asVehicle(v); local a = asActor(ped); local r = false
+    if v and v.SeatOccupancy and a then pcall(function() for _, occ in pairs(v.SeatOccupancy:ToTable()) do if occ == a then r = true break end end end) end
+    return r
+end
+function lib.isPedSittingInAnyVehicle(ped)
+    local a = asActor(ped); local r = false
+    if a then pcall(function() local idx = a:GetSeatIndex(); r = idx ~= nil and idx >= 0 end) end
+    return r
+end
+-- vehicle doors (SetVehicleDoorOpen / SetVehicleDoorsShut) via SetDoorRotation.
+function lib.setVehicleDoorOpen(v, doorIndex) v = asVehicle(v); return v and pcall(function() v:SetDoorRotation(doorIndex or 0, 1.0) end) end
+function lib.setVehicleDoorsShut(v) v = asVehicle(v); return v and pcall(function() for i = 0, 5 do v:SetDoorRotation(i, 0.0) end end) end
+-- ped in vehicle (CreatePedInsideVehicle): spawn a ped then seat it.
+function lib.createPedInsideVehicle(vehicle, seatIndex, coords, rotation)
+    local ok, ped = pcall(function() return lib.spawnPed(coords, rotation) end)
+    if ok and ped then local v = asVehicle(vehicle); pcall(function() v:TakeSeat(ped, seatIndex or 0) end) end
+    return ped
+end
+-- all objects (GetAllObjects): enumerate world static-mesh actors (best-effort object class).
+function lib.getAllObjects() return lib.getActorsOfClass(UE.AStaticMeshActor) end
+-- gameplay cam rotation (GetGameplayCamRot): the local player's control rotation.
+function lib.getGameplayCamRot() local r; pcall(function() r = HPlayer:GetControlRotation() end) return r end
