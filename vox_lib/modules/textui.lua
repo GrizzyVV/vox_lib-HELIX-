@@ -17,6 +17,9 @@ end
 
 function lib.showTextUI(text, options)
     if type(text) ~= "string" then return end
+    -- DEDUPE (CPU guard 2026-07-02): converted FiveM help-text idioms call this EVERY FRAME with the same text
+    -- (marker loops). Identical text while open -> no-op, no WebUI event. Changed text still updates (ox_lib parity).
+    if _open and _text == text then return end
     local ui = ensureUI()
     if not ui then return end          -- no WebUI (e.g. server state) — surfaced no-op
     _open, _text = true, text
