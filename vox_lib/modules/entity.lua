@@ -275,9 +275,21 @@ function lib.walkTo(ped, coords, opts)
 end
 
 -- ── spatial + enumeration + vehicle repair (b2probe-VERIFIED 2026-06-30) ────────────────────────────────────────────
--- GetPedBoneIndex: a ped's bone index by name (the index sibling of getBoneCoords). mesh:GetBoneIndex / GetBoneName verified.
+-- GTA bone-id/hash -> UE skeleton bone NAME (PARTIAL, best-effort — the common set; unknown ids fall through to nil, no
+-- regression). FiveM GetPedBoneIndex passes a GTA bone id; HELIX GetBoneIndex wants a UE bone-name string. ⚠️ UE names are
+-- best-guess (standard UE5 humanoid); verify against SK_Unified in-engine and extend. A string `bone` is used as-is.
+local GTA_BONE = {
+    [0]     = "root",     [31086] = "head",      [39317] = "neck_01",   [24816] = "spine_03",
+    [24817] = "spine_02", [23553] = "spine_01",  [57597] = "pelvis",    [18905] = "hand_l",
+    [57005] = "hand_r",   [45509] = "upperarm_l",[40269] = "upperarm_r",[61163] = "lowerarm_l",
+    [28252] = "lowerarm_r",[65245]= "thigh_l",   [51826] = "thigh_r",   [14201] = "calf_l",
+    [52301] = "calf_r",   [2108]  = "foot_l",    [14606] = "foot_r",
+}
+-- GetPedBoneIndex: a ped's bone index. Accepts a UE bone-NAME string, or a GTA bone id (translated via GTA_BONE, partial).
 function lib.getBoneIndex(ped, bone)
     local a = asActor(ped); if not a then return nil end
+    if type(bone) == "number" then bone = GTA_BONE[bone] end
+    if type(bone) ~= "string" then return nil end
     local i; pcall(function() i = a.Mesh:GetBoneIndex(bone) end); return i
 end
 
